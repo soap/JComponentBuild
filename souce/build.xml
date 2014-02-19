@@ -2,19 +2,12 @@
 <project name="j_component_build" basedir="." default="all">
  		<!-- 
  		Created by Prasit Gebsaap
-        Last Update: 2013-09-15 12:17
+        Last Update: 2014-02-18 9:56 GMT+7
  		Improvments are welcome! ;)
  		PHING buld file for creating component for Joomla 2.5
         
  		Change list:
-           project name (above) for your component name without com_
-           pack.dir for store your package
-           tmp.dir for temporary working folder
-           dev.dir  for your development web server
-           source.dir for storing your source code (may be in SVN working copy}
-           
-        Note: your source folder is in the same folder with this buld file, having name ${element.name} eg. com_asterman
-
+ 			support project.properties and buidl.properties, put your configuration in those files
  		Avaible targets are all, package, update_source 
 
  		usage phing -f build.xml target
@@ -46,7 +39,7 @@
         <!-- Define failsafe properties, if file (build.properties) not available -->
         <property name="project.root" value="" override="false" />
 		<property name="repo.folder" value="." override="false" />
-
+		<property name="tmp.folder" value="${build.folder}/tmp" />
         <tstamp>
             <format property="DATE" pattern="%Y%m%d%H%M" />
         </tstamp>
@@ -74,7 +67,7 @@
 				<echo>Create build folder structure</echo>
 				<mkdir dir="${build.folder}" />
 				<mkdir dir="${pack.dir}" />
-				<mkdir dir="${tmp.dir}" />
+				<mkdir dir="${tmp.folder}" />
 			</then>
 		</if>
 		<!-- end of create folder structure -->
@@ -102,14 +95,14 @@
             <exclude name="**/.svn/**"/>    
         </fileset>
         <!--- file set to be deleted from tmp source folder -->
-        <fileset id="fs_tmp_deletes" dir="${tmp.dir}" defaultexcludes="true">
+        <fileset id="fs_tmp_deletes" dir="${tmp.folder}" defaultexcludes="true">
                 <include name="**/site/**" />
                 <include name="**/admin/**" />
                 <include name="**/media/**" />
                 <include name="*.*" />
         </fileset>
         <!-- temporary source file storage -->
-        <fileset id="fs_tmp_source" dir="${tmp.dir}" defaultexcludes="true">
+        <fileset id="fs_tmp_source" dir="${tmp.folder}" defaultexcludes="true">
 			<exclude name="site/var/moh/**/*.gsm" />
             <include name="*/**" />
             <exclude name="**/.svn/**"/>
@@ -123,24 +116,25 @@
         </target>
 
         <target name="_prepare_build" depends="_clean_tmp">
-            <mkdir dir="${tmp.dir}" />
-            <copy todir="${tmp.dir}" includeemptydirs="true">
+            <mkdir dir="${tmp.folder}" />
+            <copy todir="${tmp.folder}" includeemptydirs="true">
                 <fileset refid="fs_component_source" />
             </copy>
         </target>
                 
-        <target name="update_source" description="Copy files from development server to source/svn folder">
+        <target name="update_source" depends="_customtasks" description="Copy files from development server to source/svn folder">
+			<jproject name="${element.name}" />
             <echo>Building project ${phing.project.name}, copy files from dev to source</echo>
             <echo>Copy backend files from ${project.root}/administrator/components/${element.name} to ${source.dir}/admin</echo>
             <copy todir="${source.dir}/admin" >
                 <fileset refid="fs_component_admin_dev" />
             </copy>
             
-            <echo>Copy file ${project.root}/administrator/components/${element.name}/${phing.project.name}.xml to ${source.dir}</echo>
+            <echo>Copy file ${project.root}/administrator/components/${element.name}/${element.manifest}.xml to ${source.dir}</echo>
 			
             <copy todir="${source.dir}">
                 <fileset dir="${project.root}/administrator/components/${element.name}">
-                    <include name="${phing.project.name}.xml"/>
+                    <include name="${element.manifest}.xml"/>
 					<include name="script.php" />
                 </fileset>
             </copy>
@@ -186,4 +180,22 @@
         </target>
         <target name="all" description="Do all tasks" depends="update_source, _clean_tmp, _prepare_build, package">
         </target>
+<!--******************************************************************************************************
+	 	Untility Routines in here
+    ******************************************************************************************************  -->
+    <target name="_customtasks">
+        <adhoc-task name="jproject">
+            <![CDATA[
+                class JoomlaProjectTask extends PropertyTask
+                {
+                    public function setName($str){
+                        $arr = explode("_", $str);
+                        $this->project->setProperty("element.manifest", $arr[1]);
+          
+                    }
+                    public function main(){}
+                }
+            ]]>
+        </adhoc-task>
+	</target>
 </project>
